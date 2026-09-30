@@ -4,7 +4,7 @@
 
 Pipeline complet d'analyse : requêtes SQL sur Google BigQuery, fiabilisation dans Power Query, dashboard interactif dans Power BI Desktop. Données nationales DREES 2017-2023.
 
-![Dashboard](captures/dashboard_urgences_2026-09-30.png)
+![Dashboard](Dashboard_urgences_drees_2017_2023.png)
 
 ## Contexte
 
@@ -25,22 +25,22 @@ Les services d'urgences enregistrent 16,1 millions de passages en France en 2024
 
 **Source** : DREES (Direction de la recherche, des études, de l'évaluation et des statistiques) — passages quotidiens aux urgences par département, janvier 2017 à décembre 2023, France entière (métropole + DROM). Une vue `v_passages` prépare les données dans BigQuery : codage du jour de semaine (0 = lundi), périodes (`comparable` / `atypique_covid` pour 2020-2021), groupes d'années (`2017-2019` / `2022-2023`).
 
-**Six tables agrégées** produites par les requêtes SQL (dossier `data/`) :
+**Six tables agrégées** produites par les requêtes SQL:
 
 | Fichier | Contenu | Grain |
 |---|---|---|
-| `series_mensuelles_nationales.csv` | Passages par mois, avec période et groupe | 84 mois |
-| `ratio_mensuel_par_groupe.csv` | Indice de saisonnalité mensuel par groupe (1 = moyenne annuelle) | 24 lignes |
-| `cycle_mensuel_par_groupe.csv` | Moyenne par jour de chaque mois, par groupe — table de contrôle | 24 lignes |
-| `passages_par_jour_semaine.csv` | Passages cumulés par jour de semaine (effet lundi) | 7 lignes |
-| `passages_par_dep_jour_semaine.csv` | Passages par département × jour de semaine | ~700 lignes |
-| `concentration_estivale_top_20.csv` | Top 20 des départements : part de l'été (juillet-août) dans les passages annuels, avant/après COVID | 20 lignes |
+| `SerieNationale.csv` | Passages par mois, avec période et groupe | 84 mois |
+| `RatioMensuel.csv`| Indice de saisonnalité mensuel par groupe (1 = moyenne annuelle) | 24 lignes |
+| `CycleMensuel.csv` | Moyenne par jour de chaque mois, par groupe — table de contrôle | 24 lignes |
+| `JourSemaine.csv` | Passages cumulés par jour de semaine (effet lundi) | 7 lignes |
+| `DepJourSemaine.csv` | Passages par département × jour de semaine | ~700 lignes |
+| `Top20Ete.csv`| Top 20 des départements : part de l'été (juillet-août) dans les passages annuels, avant/après COVID | 20 lignes |
 
 ## Méthode — pipeline en trois étages
 
 | Étage | Outil | Rôle |
 |---|---|---|
-| 1. Agrégation | SQL BigQuery | 6 requêtes analytiques (CTE, fonctions de fenêtre, agrégation conditionnelle) — voir `sql/requetes_bigquery.sql` |
+| 1. Agrégation | SQL BigQuery | 6 requêtes analytiques (CTE, fonctions de fenêtre, agrégation conditionnelle) — voir `requetes_bigquery-sql-prêt-à-publier-sur-github.py` |
 | 2. Fiabilisation | Power Query | Typage des colonnes, gestion des séparateurs décimaux régionaux, libellés de calendrier, tris |
 | 3. Restitution | Power BI Desktop | Mesures DAX, visuels interactifs, segments |
 
@@ -48,14 +48,19 @@ Principaux choix de calcul : les moyennes mensuelles sont calculées **par jour*
 
 Mesures DAX principales : `Passages Totaux`, `Passages Moyens Semaine`, `Écart Lundi Dimanche`, plus deux colonnes de libellés (`Jour Nom`, `Mois Nom`) avec tri explicite par numéro — les libellés seuls s'affichent toujours dans l'ordre du calendrier.
 
-## Résultats
+## Les résultats
+
 
 - **La saisonnalité n'est pas un pic hivernal unique : c'est un double pic juin-décembre avec creux d'août.** En 2017-2019 : juin à 1,043 et décembre à 1,014 (indice vs moyenne annuelle), août à 0,959.
 - **L'amplitude saisonnière s'est renforcée après COVID : +52 %** — de 8,4 points (2017-2019) à 12,8 points (2022-2023). Le contraste annuel s'est creusé : février 2022-2023 descend à 0,928 quand décembre monte à 1,056.
 - **L'effet lundi est confirmé : +14 %** — 22,5 M de passages cumulés le lundi contre 19,7 M le dimanche, cohérent avec l'étude publiée de la DREES, ce qui valide la méthode du projet.
 - **La concentration estivale des départements touristiques a légèrement reculé** : Haute-Corse -2,1 pts, Vendée -1,8 pt, Var -1,6 pt ; seules les Hautes-Alpes progressent (+0,6 pt). L'hypothèse 2 (intensification du versant estival) est **infirmée** sur 2017-2023 : le renforcement porte sur le contraste annuel global, pas sur le tourisme d'été.
 
-## Le dashboard (1 page, 4 visuels + 3 KPI + 2 segments)
+[Indice_2017-2019](indice_saisonnalité_2017_2019.png)
+
+## Le dashboard
+
+ (1 page, 4 visuels + 3 KPI + 2 segments)
 
 - **Visuel pilote** : indice de saisonnalité par mois, deux lignes (2017-2019 vs 2022-2023), ligne de référence à 1 (moyenne annuelle), axe ajusté 0,9-1,1 — l'écrasement d'axe à partir de 0 y rendrait le signal illisible.
 - **Effet jour de semaine** : histogramme des 7 jours, étiquettes de données affichées (axe conservé à zéro pour ne pas exagérer visuellement un écart de 14 %).
@@ -63,6 +68,8 @@ Mesures DAX principales : `Passages Totaux`, `Passages Moyens Semaine`, `Écart 
 - **Top 20 estival** : barres horizontales par département, part 2022-2023.
 - **Cartes KPI** : passages cumulés, moyenne par jour de semaine, surcharge du lundi.
 - **Segments** : période et groupe d'années.
+
+[Indice_2022-2023](Indice_saisonnalité_2022_2023.png)
 
 ## Contrôle qualité des données
 
@@ -79,8 +86,8 @@ Trois incidents de format rencontrés et corrigés lors du pipeline — document
 ## Reproduire et explorer
 
 1. Ouvrir `dashboard_urgences_drees_2017_2023.pbix` avec Power BI Desktop (gratuit) : le modèle et les mesures se rechargent automatiquement.
-2. Sans Power BI : les 6 CSV du dossier `data/` se lisent directement.
-3. Les requêtes du dossier `sql/` sont réexécutables dans BigQuery sur les données publiques DREES (identifiant de projet neutralisé dans le fichier publié).
+2. Sans Power BI : les 6 CSV du dossier se lisent directement.
+3. Les requêtes du [SQL](requetes_bigquery-sql-prêt-à-publier-sur-github.py) sont réexécutables dans BigQuery sur les données publiques DREES (identifiant de projet neutralisé dans le fichier publié).
 
 ## Compétences mobilisées
 
@@ -100,3 +107,4 @@ Code et requêtes sous licence MIT. Les données restent la propriété de la DR
 ## Auteur
 
 **Stephanie Le Levier** — Analyste data, certifiée Google Data Analytics. [LinkedIn](https://www.linkedin.com/in/stephanie-le-levier/)
+
